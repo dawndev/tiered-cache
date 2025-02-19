@@ -4,35 +4,21 @@ import java.util.concurrent.ThreadFactory
 import java.util.concurrent.atomic.AtomicInteger
 
 internal class NamedThreadFactory(
-    private var name: String
+    private val namePrefix: String,
+    private val isDaemon: Boolean = false
 ) : ThreadFactory {
 
-    private val poolNumber = AtomicInteger(1)
-
-    private var threadGroup: ThreadGroup
+    private val group: ThreadGroup = System.getSecurityManager()?.threadGroup ?: Thread.currentThread().threadGroup
 
     private val threadNumber = AtomicInteger(1)
 
-    private var namePrefix: String
-
-    init {
-        val s = System.getSecurityManager()
-        threadGroup = if (s != null) s.threadGroup else Thread.currentThread().threadGroup
-        if (name.isBlank()) {
-            name = "pool"
+    override fun newThread(r: Runnable): Thread =
+        Thread(group, r, "$namePrefix-${threadNumber.getAndIncrement()}", 0).also {
+            if (it.isDaemon != isDaemon) {
+                it.isDaemon = isDaemon
+            }
+            if (it.priority != Thread.NORM_PRIORITY) {
+                it.priority = Thread.NORM_PRIORITY
+            }
         }
-        namePrefix = name + "-" + poolNumber.getAndIncrement() + "-thread-"
-    }
-
-
-    override fun newThread(runnable: Runnable): Thread {
-        val thread = Thread(threadGroup, runnable, namePrefix + threadNumber.getAndIncrement(), 0)
-        if (thread.isDaemon) {
-            thread.isDaemon = false
-        }
-        if (thread.priority != Thread.NORM_PRIORITY) {
-            thread.priority = Thread.NORM_PRIORITY
-        }
-        return thread
-    }
 }

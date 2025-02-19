@@ -1,5 +1,3 @@
-package com.github.dawndev.tieredcache
-
 //MIT License
 //
 //Copyright (c) 2025 Espresso
@@ -22,6 +20,8 @@ package com.github.dawndev.tieredcache
 //OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 //SOFTWARE.
 
+package com.github.dawndev.tieredcache.core
+
 import java.util.concurrent.Callable
 
 /**
@@ -31,17 +31,11 @@ import java.util.concurrent.Callable
  */
 interface ICache {
 
-    /**
-     * 缓存名称
-     */
+    // 缓存名称
     val name: String
 
-    /**
-     * 返回Cache对象
-     *
-     * @return
-     */
-    fun getNativeCache(): Any
+    // 返回Cache对象
+    val nativeRef: Any
 
     /**
      * 根据KEY返回缓存中对应的值，并将其返回类型转换成对应类型，如果对应key不存在返回NULL
@@ -101,7 +95,7 @@ interface ICache {
     fun <T> putIfAbsent(key: String, value: Any?, resultType: Class<T>): T?
 
     /**
-     * 在缓存中删除对应的key
+     * 在缓存中删除对应的key invalidate
      *
      * @param key 缓存key
      */

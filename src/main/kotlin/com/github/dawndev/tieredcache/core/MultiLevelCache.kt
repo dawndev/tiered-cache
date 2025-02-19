@@ -22,35 +22,41 @@ import java.util.concurrent.Callable
  */
 class MultiLevelCache(
     private val client: RedisTemplate,
-    val localCache: AbstractCache,
-    val remoteCache: AbstractCache,
+    val localCache: ICache,
+    val remoteCache: ICache,
     private val enableLocalCache: Boolean,
     override val name: String,
-    private val multiCacheSetting: MultiCacheOptions
-) : AbstractCache(name, remoteCache.allowNullValues) {
+    private val multiCacheSetting: MultiCacheOptions,
+    override val enableNull: Boolean
+) : AbstractCache(name, enableNull), ICache {
 
     constructor(
         client: RedisTemplate,
-        localCache: AbstractCache,
-        remoteCache: AbstractCache,
+        localCache: ICache,
+        remoteCache: ICache,
         multiCacheSetting: MultiCacheOptions,
-    ) : this(client, localCache, remoteCache, multiCacheSetting.enableL1, remoteCache.name, multiCacheSetting) {
-        // pass
-    }
+    ) : this(
+        client,
+        localCache,
+        remoteCache,
+        multiCacheSetting.enableLocal,
+        remoteCache.name,
+        multiCacheSetting,
+        multiCacheSetting.enableNull
+    )
 
-    override fun getNativeCache(): Any {
-        return this
-    }
+    override val nativeRef: Any
+        get() = this
 
     @Suppress("UNCHECKED_CAST")
     override fun <T> get(key: String, resultType: Class<T>): T? {
         if (enableLocalCache) {
-            val result: Any? = localCache.get(key, resultType)
+            val result = localCache.get(key, resultType)
             if (logger.isDebugEnabled) {
                 logger.debug("查询一级缓存。 key={},返回值是:{}", key, JsonUtils.encodeToString(result))
             }
             if (result != null) {
-                return fromStoreValue(result) as T
+                return super.fromStoreValue(result) as T
             }
         }
 

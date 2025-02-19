@@ -3,20 +3,23 @@ package com.github.dawndev.tieredcache.config
 /**
  * 多级缓存配置项
  *
- * @param l1Options                  一级缓存配置 [LocalCacheOptions]
- * @param l2Options                  二级缓存配置 [RemoteCacheOptions]
- * @param enableL1                   是否使用一级缓存
+ * @param localOptions                  一级缓存配置 [LocalCacheOptions]
+ * @param remoteOptions                 二级缓存配置 [RemoteCacheOptions]
+ * @param enableLocal                   是否使用一级缓存
  *
  * @author Espresso
  */
 data class MultiCacheOptions(
-    val l1Options: LocalCacheOptions,
-    val l2Options: RemoteCacheOptions,
-    val enableL1: Boolean = true,
+    val localOptions: LocalCacheOptions,
+    val remoteOptions: RemoteCacheOptions,
+    val enableLocal: Boolean = true,
 )  {
 
     // 内部缓存名，由[一级缓存有效时间-二级缓存有效时间]组成
     var internalKey: String = ""
+
+    val enableNull: Boolean
+        get() = remoteOptions.enableNull
 
     init {
         internalKey()
@@ -26,9 +29,9 @@ data class MultiCacheOptions(
 
         // 一级缓存有效时间-二级缓存有效时间
         val sb = StringBuilder()
-        sb.append(l1Options.timeUnit.toMillis(l1Options.expireTime.toLong()))
+        sb.append(localOptions.expiration)
         sb.append(SPLIT)
-        sb.append(l2Options.timeUnit.toMillis(l2Options.expiration))
+        sb.append(remoteOptions.expiration)
         internalKey = sb.toString()
     }
 

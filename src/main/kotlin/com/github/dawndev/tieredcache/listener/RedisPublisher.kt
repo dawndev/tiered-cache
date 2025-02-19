@@ -36,10 +36,10 @@ object RedisPublisher {
         redisClient.expire(Parameter.getMessageRedisKey(nameSpace), 25, TimeUnit.HOURS)
 
         // pub/sub 推模式消息
-        redisClient.publish(RedisMessageListener.CHANNEL, "m")
+        redisClient.publish(Parameter.REDIS_CHANNEL, "m")
 
         if (logger.isDebugEnabled) {
-            logger.debug("redis消息发布者向频道【{}】发布了【{}】消息", RedisMessageListener.CHANNEL, message.toString())
+            logger.debug("redis消息发布者向频道【{}】发布了【{}】消息", Parameter.REDIS_CHANNEL, message.toString())
         }
     }
 

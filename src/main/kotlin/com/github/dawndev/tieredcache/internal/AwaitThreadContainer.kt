@@ -10,7 +10,7 @@ import java.util.concurrent.locks.LockSupport
 /**
  * 等待线程容器
  *
- * @author jdg
+ * @author Espresso
  */
 class AwaitThreadContainer {
 

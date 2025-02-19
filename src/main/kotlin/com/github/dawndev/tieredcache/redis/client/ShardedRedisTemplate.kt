@@ -3,7 +3,6 @@ package com.github.dawndev.tieredcache.redis.client
 import com.github.dawndev.tieredcache.config.RedisConfigure
 import com.github.dawndev.tieredcache.exception.RedisClientException
 import com.github.dawndev.tieredcache.exception.SerializationException
-import com.github.dawndev.tieredcache.internal.CollectionUtils
 import com.github.dawndev.tieredcache.internal.NamedThreadFactory
 import com.github.dawndev.tieredcache.listener.RedisMessageListener
 import com.github.dawndev.tieredcache.redis.cmd.TendisScan
@@ -220,12 +219,12 @@ class ShardedRedisTemplate(
                                 val factory = RedisCommandFactory(connection)
                                 val commands: TendisScan = factory.getCommands(TendisScan::class.java)
                                 val objects = commands.scan(cursor, pattern, 10000, nodeId)
-                                if (CollectionUtils.isEmpty(objects)) {
+                                if (objects.isNullOrEmpty()) {
                                     break
                                 }
 
                                 // 更新游标位
-                                cursor = (objects!!.first() as String).toLong()
+                                cursor = (objects.first() as String).toLong()
 
                                 // 暂存key
                                 if (objects.size == 2) {
@@ -233,7 +232,7 @@ class ShardedRedisTemplate(
                                 }
                             } while (cursor != 0L)
 
-                            if (!CollectionUtils.isEmpty(innerKeys)) {
+                            if (!innerKeys.isNullOrEmpty()) {
                                 keys.addAll(innerKeys)
                             }
                         } finally {
@@ -308,7 +307,7 @@ class ShardedRedisTemplate(
             val sync: RedisClusterCommands<ByteArray, ByteArray?> = connection.sync()
             val list: MutableList<String> = ArrayList()
             val values = sync.lrange(keySerializer.serialize(key), start, end)
-            if (CollectionUtils.isEmpty(values)) {
+            if (values.isNullOrEmpty()) {
                 return list
             }
             for (value in values) {

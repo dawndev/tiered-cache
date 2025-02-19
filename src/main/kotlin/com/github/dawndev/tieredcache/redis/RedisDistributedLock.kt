@@ -1,6 +1,7 @@
 package com.github.dawndev.tieredcache.redis
 
 import com.github.dawndev.tieredcache.constg.*
+import com.github.dawndev.tieredcache.internal.Parameter
 import com.github.dawndev.tieredcache.redis.client.RedisTemplate
 import java.util.*
 
@@ -26,7 +27,7 @@ import java.util.*
  * 如果服务器返回 OK ，那么这个客户端获得锁。
  * 如果服务器返回 NIL ，那么客户端获取锁失败，可以在稍后再重试。
  *
- * @author jdg
+ * @author Espresso
  * @version 1.0
  * @since 2021/01/12
  */
@@ -134,9 +135,9 @@ class RedisDistributedLock(
                 keys.add(lockKey)
                 val args: MutableList<String> = ArrayList()
                 args.add(lockValue)
-                val result = client.eval(UNLOCK_LUA, keys, args) as Long
-                locked = result == RELEASE_FAILED
-                result == RELEASE_SUCCESS
+                val result = client.eval(Parameter.UNLOCK_LUA, keys, args) as Long
+                locked = result == Parameter.RELEASE_FAILED
+                result == Parameter.RELEASE_SUCCESS
             } catch (e: Throwable) {
                 val value = this[lockKey, String::class.java]
                 if (lockValue == value) {
@@ -165,7 +166,7 @@ class RedisDistributedLock(
      */
     private fun setNxEx(key: String, value: String, seconds: Long): Boolean {
         val result: String = client.setNxEx(key, value, seconds)
-        return LOCK_SUCCESS == result
+        return Parameter.LOCK_SUCCESS == result
     }
 
     /**

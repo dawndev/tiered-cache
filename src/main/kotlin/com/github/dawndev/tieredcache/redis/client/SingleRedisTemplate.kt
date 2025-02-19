@@ -2,7 +2,6 @@ package com.github.dawndev.tieredcache.redis.client
 
 import com.github.dawndev.tieredcache.config.RedisConfigure
 import com.github.dawndev.tieredcache.exception.RedisClientException
-import com.github.dawndev.tieredcache.internal.CollectionUtils
 import com.github.dawndev.tieredcache.listener.RedisMessageListener
 import com.github.dawndev.tieredcache.redis.serializer.RedisSerializer
 import com.github.dawndev.tieredcache.redis.serializer.impl.JdkRedisSerializer
@@ -74,7 +73,7 @@ class SingleRedisTemplate(
             valueRedisSerializer.deserialize(sync[keySerializer.serialize(key)], resultType)
         } catch (e: SerializationException) {
             throw e
-        } catch (e: java.lang.Exception) {
+        } catch (e: Exception) {
             throw RedisClientException(e.message, e)
         }
     }
@@ -85,7 +84,7 @@ class SingleRedisTemplate(
             sync.set(keySerializer.serialize(key), valueSerializer.serialize(value))
         } catch (e: SerializationException) {
             throw e
-        } catch (e: java.lang.Exception) {
+        } catch (e: Exception) {
             throw RedisClientException(e.message, e)
         }
     }
@@ -96,7 +95,7 @@ class SingleRedisTemplate(
             sync.setex(keySerializer.serialize(key), unit.toSeconds(time), valueSerializer.serialize(value))
         } catch (e: SerializationException) {
             throw e
-        } catch (e: java.lang.Exception) {
+        } catch (e: Exception) {
             throw RedisClientException(e.message, e)
         }
     }
@@ -107,7 +106,7 @@ class SingleRedisTemplate(
             sync.setex(keySerializer.serialize(key), unit.toSeconds(time), valueRedisSerializer.serialize(value))
         } catch (e: SerializationException) {
             throw e
-        } catch (e: java.lang.Exception) {
+        } catch (e: Exception) {
             throw RedisClientException(e.message, e)
         }
     }
@@ -118,7 +117,7 @@ class SingleRedisTemplate(
             sync.set(keySerializer.serialize(key), valueSerializer.serialize(value), SetArgs.Builder.nx().ex(time))
         } catch (e: SerializationException) {
             throw e
-        } catch (e: java.lang.Exception) {
+        } catch (e: Exception) {
             throw RedisClientException(e.message, e)
         }
     }
@@ -239,7 +238,7 @@ class SingleRedisTemplate(
             val sync = connection.sync()
             val list: MutableList<String?> = ArrayList()
             val values = sync.lrange(keySerializer.serialize(key), start, end)
-            if (CollectionUtils.isEmpty(values)) {
+            if (values.isNullOrEmpty()) {
                 return list
             }
             for (value in values) {

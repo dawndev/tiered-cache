@@ -1,12 +1,13 @@
 package com.github.dawndev.tieredcache.core.remote
 
-import com.github.dawndev.tieredcache.core.AbstractCache
 import com.github.dawndev.tieredcache.config.RemoteCacheOptions
+import com.github.dawndev.tieredcache.core.AbstractRemoteCache
+import com.github.dawndev.tieredcache.core.ICache
 import com.github.dawndev.tieredcache.exception.CacheLoadException
 import com.github.dawndev.tieredcache.internal.AwaitThreadContainer
-import com.github.dawndev.tieredcache.internal.CollectionUtils
 import com.github.dawndev.tieredcache.internal.JsonUtils
 import com.github.dawndev.tieredcache.internal.NullValue
+import com.github.dawndev.tieredcache.internal.Parameter
 import com.github.dawndev.tieredcache.redis.RedisDistributedLock
 import com.github.dawndev.tieredcache.redis.client.RedisTemplate
 import org.slf4j.LoggerFactory
@@ -20,24 +21,24 @@ import java.util.concurrent.TimeUnit
  * @param redisClient     redis客户端 [RedisTemplate]
  * @param expiration      key的有效时间
  * @param preloadTime     缓存主动在失效前强制刷新缓存的时间
- * @param forceRefresh    是否强制刷新（执行被缓存的方法），默认是false
- * @param usePrefix       是否使用缓存名称作为前缀
- * @param allowNullValues 是否允许存NULL值，模式允许
+ * @param enableForceRefresh    是否强制刷新（执行被缓存的方法），默认是false
+ * @param enablePrefix       是否使用缓存名称作为前缀
+ * @param enableNull 是否允许存NULL值，模式允许
  * @param magnification   非空值和null值之间的时间倍率
  *
  * @author Espresso
  */
 @Suppress("UNCHECKED_CAST")
-class RedisRemoteCache(
+open class RedisRemoteCache(
     override val name: String,
-    override val allowNullValues: Boolean,
+    override val enableNull: Boolean,
     private val redisClient: RedisTemplate,
     private val expiration: Long,
     private val preloadTime: Long,
-    private val forceRefresh: Boolean,
-    private val usePrefix: Boolean,
+    private val enableForceRefresh: Boolean,
+    private val enablePrefix: Boolean,
     private val magnification: Int
-) : AbstractCache(name, allowNullValues) {
+) : AbstractRemoteCache<RedisCacheKey>(name, enableNull, preloadTime, enableForceRefresh, magnification), ICache {
 
     /**
      * @param name                  缓存名称
@@ -50,23 +51,24 @@ class RedisRemoteCache(
         options: RemoteCacheOptions,
     ) : this(
         name,
-        options.allowNullValue,
+        options.enableNull,
         redisClient,
-        options.timeUnit.toMillis(options.expiration),
-        options.timeUnit.toMillis(options.preloadTime),
-        options.forceRefresh,
-        options.usePrefix,
+        options.expiration,
+        options.preloadTime,
+        options.enableForceRefresh,
+        options.enablePrefix,
         options.magnification
     )
+
+    private val logger = LoggerFactory.getLogger(RedisRemoteCache::class.java)
 
     /**
      * 等待线程容器
      */
     private val container: AwaitThreadContainer = AwaitThreadContainer()
 
-    override fun getNativeCache(): Any {
-        return redisClient
-    }
+    override val nativeRef: Any
+        get() = redisClient
 
     override fun <T> get(key: String, resultType: Class<T>): T? {
 
@@ -78,7 +80,7 @@ class RedisRemoteCache(
     override fun <T> get(key: String, resultType: Class<T>, valueLoader: Callable<T>): T? {
 
 
-        val redisCacheKey = getRedisCacheKey(key)
+        val redisCacheKey = this.getRedisCacheKey(key)
         if (logger.isDebugEnabled) {
             logger.debug("redis缓存 key= {} 查询redis缓存如果没有命中，从数据库获取数据", redisCacheKey.getKey())
         }
@@ -87,16 +89,16 @@ class RedisRemoteCache(
         val result = redisClient.get(redisCacheKey.getKey(), resultType)
         if (result != null || redisClient.hasKey(redisCacheKey.getKey())) {
             // 刷新缓存
-            refreshCache(redisCacheKey, resultType, valueLoader, result)
-            return fromStoreValue(result as Any) as T
+            super.refreshCache(redisCacheKey, resultType, valueLoader, result)
+            return super.fromStoreValue(result as Any) as T
         }
 
         // 执行缓存方法
-        return executeCacheMethod(redisCacheKey, resultType, valueLoader)
+        return this.executeCacheMethod(redisCacheKey, resultType, valueLoader)
     }
 
     override fun put(key: String, value: Any?) {
-        val redisCacheKey = getRedisCacheKey(key)
+        val redisCacheKey = this.getRedisCacheKey(key)
         if (logger.isDebugEnabled) {
             logger.debug("redis缓存 key= {} put缓存，缓存值：{}", redisCacheKey.getKey(), JsonUtils.toJSONString(value))
         }
@@ -105,7 +107,7 @@ class RedisRemoteCache(
 
     override fun <T> putIfAbsent(key: String, value: Any?, resultType: Class<T>): T? {
         if (logger.isDebugEnabled) {
-            logger.debug("redis缓存 key= {} putIfAbsent缓存，缓存值：{}", getRedisCacheKey(key).getKey(), JsonUtils.toJSONString(value))
+            logger.debug("redis缓存 key= {} putIfAbsent缓存，缓存值：{}", this.getRedisCacheKey(key).getKey(), JsonUtils.toJSONString(value))
         }
         val result = get(key, resultType)
         if (result != null) {
@@ -116,17 +118,17 @@ class RedisRemoteCache(
     }
 
     override fun evict(key: String) {
-        val redisCacheKey = getRedisCacheKey(key)
+        val redisCacheKey = this.getRedisCacheKey(key)
         logger.info("清除redis缓存 key= {} ", redisCacheKey.getKey())
         redisClient.delete(redisCacheKey.getKey())
     }
 
     override fun clear() {
         // 必须开启了使用缓存名称作为前缀，clear才有效
-        if (usePrefix) {
+        if (enablePrefix) {
             logger.info("清空redis缓存 ，缓存前缀为{}", name)
             val keys = redisClient.scan("$name*")
-            if (!CollectionUtils.isEmpty(keys)) {
+            if (!keys.isNullOrEmpty()) {
                 redisClient.delete(keys)
             }
         }
@@ -138,9 +140,14 @@ class RedisRemoteCache(
      * @param key 缓存key
      * @return RedisCacheKey
      */
-    fun getRedisCacheKey(key: String): RedisCacheKey {
-        return RedisCacheKey(key, redisClient.keySerializer)
-            .cacheName(name).usePrefix(usePrefix)
+    private fun getRedisCacheKey(key: String): RedisCacheKey {
+        return RedisCacheKey.build {
+            this@build.keyElement = key
+            this@build.serializer = redisClient.keySerializer
+            this@build.cacheName = name
+            this@build.enablePrefix = this@RedisRemoteCache.enablePrefix
+
+        }
     }
 
 
@@ -150,7 +157,7 @@ class RedisRemoteCache(
     private fun <T> executeCacheMethod(redisCacheKey: RedisCacheKey, resultType: Class<T>, valueLoader: Callable<T>): T? {
         val redisLock = RedisDistributedLock(
             redisClient,
-            redisCacheKey.getKey() + "_sync_lock",
+            Parameter.getRedisLockKey(redisCacheKey.getKey()),
             1
         )
 
@@ -177,9 +184,9 @@ class RedisRemoteCache(
                 }
                 // 线程等待
                 if (logger.isDebugEnabled) {
-                    logger.debug("redis缓存 key= {} 从数据库获取数据未获取到锁，进入等待状态，等待{}毫秒", redisCacheKey.getKey(), WAIT_TIME)
+                    logger.debug("redis缓存 key= {} 从数据库获取数据未获取到锁，进入等待状态，等待{}毫秒", redisCacheKey.getKey(), Parameter.WAIT_TIME)
                 }
-                container.await(redisCacheKey.getKey(), WAIT_TIME)
+                container.await(redisCacheKey.getKey(), Parameter.WAIT_TIME)
             } catch (e: java.lang.Exception) {
                 container.signalAll(redisCacheKey.getKey())
                 throw CacheLoadException(redisCacheKey.getKey(), e)
@@ -215,7 +222,7 @@ class RedisRemoteCache(
             return result
         }
         // 不允许缓存NULL值，删除缓存
-        if (!allowNullValues && result is NullValue) {
+        if (!enableNull && result is NullValue) {
             redisClient.delete(key.getKey())
             return result
         }
@@ -223,39 +230,12 @@ class RedisRemoteCache(
         // 允许缓存NULL值
         var expirationTime = expiration
         // 允许缓存NULL值且缓存为值为null时需要重新计算缓存时间
-        if (allowNullValues && result is NullValue) {
-            expirationTime = expirationTime / magnification
+        if (enableNull && result is NullValue) {
+            expirationTime /= magnification
         }
         // 将数据放到缓存
         redisClient.set(key.getKey(), result, expirationTime, TimeUnit.MILLISECONDS)
         return result
-    }
-
-
-    /**
-     * 刷新缓存数据
-     */
-    private fun <T> refreshCache(redisCacheKey: RedisCacheKey, resultType: Class<T>, valueLoader: Callable<T>, result: Any?) {
-        var preload = preloadTime
-        // 允许缓存NULL值，则自动刷新时间也要除以倍数
-        val flag = allowNullValues && (result is NullValue || result == null)
-        if (flag) {
-            preload = preload / magnification
-        }
-        if (isRefresh(redisCacheKey, preload)) {
-            // 判断是否需要强制刷新在开启刷新线程
-            if (!getForceRefresh()) {
-                if (logger.isDebugEnabled) {
-                    logger.debug("redis缓存 key={} 软刷新缓存模式", redisCacheKey.getKey())
-                }
-                softRefresh(redisCacheKey)
-            } else {
-                if (logger.isDebugEnabled) {
-                    logger.debug("redis缓存 key={} 强刷新缓存模式", redisCacheKey.getKey())
-                }
-                forceRefresh(redisCacheKey, resultType, valueLoader, preload)
-            }
-        }
     }
 
     /**
@@ -263,7 +243,7 @@ class RedisRemoteCache(
      *
      * @param redisCacheKey [RedisCacheKey]
      */
-    private fun softRefresh(redisCacheKey: RedisCacheKey) {
+    override fun softRefresh(redisCacheKey: RedisCacheKey) {
         // 加一个分布式锁，只放一个请求去刷新缓存
         val redisLock = RedisDistributedLock(redisClient, redisCacheKey.getKey() + "_lock")
         try {
@@ -284,7 +264,7 @@ class RedisRemoteCache(
      * @param valueLoader   数据加载器
      * @param preloadTime   缓存预加载时间
      */
-    private fun <T> forceRefresh(
+    override fun <T> forceRefresh(
         redisCacheKey: RedisCacheKey,
         resultType: Class<T>,
         valueLoader: Callable<T>,
@@ -327,7 +307,7 @@ class RedisRemoteCache(
      * @param preloadTime   预加载时间（经过计算后的时间）
      * @return boolean
      */
-    private fun isRefresh(redisCacheKey: RedisCacheKey, preloadTime: Long): Boolean {
+    override fun isRefresh(redisCacheKey: RedisCacheKey, preloadTime: Long): Boolean {
         // 获取锁之后再判断一下过期时间，看是否需要加载数据
         val ttl = redisClient.getExpire(redisCacheKey.getKey())
         // -2表示key不存在
@@ -338,20 +318,5 @@ class RedisRemoteCache(
             ttl > 0 && TimeUnit.SECONDS.toMillis(ttl) <= preloadTime
         }
 
-    }
-
-    /**
-     * 是否强制刷新（执行被缓存的方法），默认是false
-     *
-     * @return boolean
-     */
-    private fun getForceRefresh(): Boolean {
-        return forceRefresh
-    }
-
-    companion object {
-        val WAIT_TIME = 500 // 刷新缓存等待时间，单位毫秒
-
-        private val logger = LoggerFactory.getLogger(RedisRemoteCache::class.java)
     }
 }

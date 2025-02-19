@@ -34,6 +34,7 @@ dependencies {
     implementation(Deps.Caffeine)
     implementation(Deps.Kryo)
     implementation(Deps.Lettuce)
+    implementation(Deps.Micrometer)
 
     testImplementation(Deps.Junit.JupiterEngine)
     testImplementation(Deps.Junit.JupiterApi)

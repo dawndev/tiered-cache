@@ -23,8 +23,3 @@ internal object JsonUtils {
 
     }
 }
-
-//@Serializable
-//data class Test(
-//    var code: Int
-//)

@@ -1,6 +1,7 @@
 package com.github.dawndev.tieredcache.listener
 
-import com.github.dawndev.tieredcache.manage.AbstractCacheManager
+import com.github.dawndev.tieredcache.internal.Parameter
+import com.github.dawndev.tieredcache.AbstractCacheManager
 import io.lettuce.core.pubsub.RedisPubSubListener
 import org.slf4j.LoggerFactory
 
@@ -17,7 +18,7 @@ class RedisMessageListener(
 
     init {
         // 创建监听
-        cacheManager.client.subscribe(this, CHANNEL)
+        cacheManager.client.subscribe(this, Parameter.REDIS_CHANNEL)
         redisMessageService = RedisMessageService(cacheManager)
     }
 
@@ -31,7 +32,7 @@ class RedisMessageListener(
             redisMessageService.pull()
         } catch (e: Exception) {
             e.printStackTrace()
-            logger.error("gwan-cache | clear Level1 cache：{}", e.message, e)
+            logger.error("tiered-cache | clear remote cache：{}", e.message, e)
         }
     }
 
@@ -56,7 +57,6 @@ class RedisMessageListener(
     }
 
     companion object {
-        val CHANNEL: String = "gwan-cache-channel"
         private val logger = LoggerFactory.getLogger(RedisMessageListener::class.java)
     }
 }

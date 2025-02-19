@@ -1,8 +1,29 @@
-package com.github.dawndev.tieredcache.manage
+//MIT License
+//
+//Copyright (c) 2025 Espresso
+//
+//Permission is hereby granted, free of charge, to any person obtaining a copy
+//of this software and associated documentation files (the "Software"), to deal
+//in the Software without restriction, including without limitation the rights
+//to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+//copies of the Software, and to permit persons to whom the Software is
+//furnished to do so, subject to the following conditions:
+//
+//The above copyright notice and this permission notice shall be included in all
+//copies or substantial portions of the Software.
+//
+//THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+//IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+//FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+//AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+//LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+//OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+//SOFTWARE.
 
-import com.github.dawndev.tieredcache.ICache
+package com.github.dawndev.tieredcache
+
 import com.github.dawndev.tieredcache.config.MultiCacheOptions
-import com.github.dawndev.tieredcache.internal.CollectionUtils
+import com.github.dawndev.tieredcache.core.ICache
 import com.github.dawndev.tieredcache.listener.RedisMessageListener
 import com.github.dawndev.tieredcache.listener.RedisMessagePullTask
 import com.github.dawndev.tieredcache.redis.client.RedisTemplate
@@ -13,7 +34,7 @@ import java.util.concurrent.ConcurrentMap
 /**
  * 公共的抽象 [CacheManager] 的实现.
  *
- * @author jdg
+ * @author Espresso
  */
 abstract class AbstractCacheManager(
     open var client: RedisTemplate
@@ -21,8 +42,9 @@ abstract class AbstractCacheManager(
 
     /**
      * 缓存容器
-     * 外层key是cache_name
-     * 里层key是[一级缓存有效时间-二级缓存有效时间]
+     * <p>
+     *     外层key是cache_name
+     *     里层key是[一级缓存有效时间-二级缓存有效时间]
      */
     private val cacheContainer: ConcurrentMap<String, ConcurrentMap<String, ICache>> = ConcurrentHashMap(16)
 
@@ -34,7 +56,7 @@ abstract class AbstractCacheManager(
 
     override fun getCache(name: String): Collection<ICache> {
         val cacheMap = cacheContainer[name]
-        return if (cacheMap == null || cacheMap.isEmpty()) {
+        return if (cacheMap.isNullOrEmpty()) {
             emptyList()
         } else cacheMap.values
     }
@@ -49,8 +71,8 @@ abstract class AbstractCacheManager(
 
         // 第一次获取缓存Cache，如果有直接返回,如果没有加锁往容器里里面放Cache
         var cacheMap = cacheContainer[name]
-        if (!CollectionUtils.isEmpty(cacheMap)) {
-            val cache = cacheMap!![multiCacheOptions.internalKey]
+        if (!cacheMap.isNullOrEmpty()) {
+            val cache = cacheMap[multiCacheOptions.internalKey]
             if (cache != null) {
                 return cache
             }
@@ -59,7 +81,7 @@ abstract class AbstractCacheManager(
         // 第二次获取缓存Cache，加锁往容器里里面放Cache
         synchronized(cacheContainer) {
             cacheMap = cacheContainer[name]
-            if (!CollectionUtils.isEmpty(cacheMap)) {
+            if (!cacheMap.isNullOrEmpty()) {
                 // 从容器中获取缓存
                 val cache = cacheMap!![multiCacheOptions.internalKey]
                 if (cache != null) {
@@ -73,10 +95,10 @@ abstract class AbstractCacheManager(
             }
 
             // 新建一个Cache对象
-            var cache = getMissingCache(name, multiCacheOptions)
+            var cache = this.getMissingCache(name, multiCacheOptions)
             if (cache != null) {
                 // 装饰Cache对象
-                cache = decorateCache(cache)
+                cache = this.decorateCache(cache)
                 // 将新的Cache对象放到容器
                 cacheMap!![multiCacheOptions.internalKey] = cache
                 if (cacheMap!!.size > 1) {
@@ -107,7 +129,7 @@ abstract class AbstractCacheManager(
      * @param cache 需要添加到CacheManager的Cache实例
      * @return 装饰过后的Cache实例
      */
-    protected fun decorateCache(cache: ICache): ICache {
+    protected open fun decorateCache(cache: ICache): ICache {
         return cache
     }
 

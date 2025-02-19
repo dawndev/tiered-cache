@@ -8,9 +8,11 @@ import com.github.benmanes.caffeine.cache.Cache
 import com.github.benmanes.caffeine.cache.Caffeine
 import com.github.benmanes.caffeine.cache.LoadingCache
 import com.github.dawndev.tieredcache.constg.ExpireModeEnum
+import com.github.dawndev.tieredcache.core.LocalCache
 import com.github.dawndev.tieredcache.exception.CacheLoadException
 import com.github.dawndev.tieredcache.internal.JsonUtils
 import com.github.dawndev.tieredcache.internal.NullValue
+import java.time.Duration
 
 /**
  * 使用name和[LocalCacheOptions]创建一个 [CaffeineLocalCache] 实例
@@ -22,30 +24,44 @@ import com.github.dawndev.tieredcache.internal.NullValue
 @Suppress("UNCHECKED_CAST")
 class CaffeineLocalCache(
     override val name: String,
-    override val allowNullValues: Boolean,
-    private val options: LocalCacheOptions
-) : AbstractCache(name, allowNullValues) {
+    override val enableNull: Boolean,
+    private val initialCapacity: Int,
+    private val maximumSize: Long,
+    private val expireMode: ExpireModeEnum,
+    private val expireTime: Long,
+    private val enableStats: Boolean
+) : AbstractCache(name, enableNull), LocalCache {
 
-    private var cache: Cache<Any, Any>
-
-    init {
-        // 根据配置创建Caffeine builder
+    private val cache: Cache<Any, Any> by lazy {
         val builder = Caffeine.newBuilder()
-        builder.initialCapacity(options.initialCapacity)
-        builder.maximumSize(options.maximumSize.toLong())
+        builder.initialCapacity(initialCapacity)
+        builder.maximumSize(maximumSize)
         builder.softValues()
-        if (ExpireModeEnum.WRITE == options.expireMode) {
-            builder.expireAfterWrite(options.expireTime.toLong(), options.timeUnit)
-        } else if (ExpireModeEnum.ACCESS == options.expireMode) {
-            builder.expireAfterAccess(options.expireTime.toLong(), options.timeUnit)
+        when (expireMode) {
+            ExpireModeEnum.WRITE -> builder.expireAfterWrite(Duration.ofMillis(expireTime))
+            ExpireModeEnum.ACCESS -> builder.expireAfterAccess(Duration.ofMillis(expireTime))
         }
         // 根据Caffeine builder创建 Cache 对象
-        cache = builder.build()
+        logger.debug("caffeine init~")
+        builder.build()
     }
 
-    override fun getNativeCache(): Any {
-        return this.cache
-    }
+    constructor(
+        name: String,
+        options: LocalCacheOptions
+    ): this(
+        name,
+        options.enableNull,
+        options.initialCapacity,
+        options.maximumSize,
+        options.expireMode,
+        options.expiration,
+        options.enableStats
+    )
+
+
+    override val nativeRef: Any
+        get() = this.cache
 
 
     override fun <T> get(key: String, resultType: Class<T>): T? {
@@ -67,7 +83,7 @@ class CaffeineLocalCache(
         val result = cache[key, { _ -> loaderValue(key, valueLoader) }]
 
         // 如果不允许存NULL值 直接删除NULL值缓存
-        val isEvict = !allowNullValues && (result == null || result is NullValue)
+        val isEvict = !enableNull && (result == null || result is NullValue)
         if (isEvict) {
             evict(key)
         }
@@ -76,7 +92,7 @@ class CaffeineLocalCache(
 
     override fun put(key: String, value: Any?) {
         // 允许存NULL值
-        if (allowNullValues) {
+        if (enableNull) {
             if (logger.isDebugEnabled) {
                 logger.debug("caffeine缓存 key={} put缓存，缓存值：{}", key, JsonUtils.toJSONString(value))
             }
@@ -99,7 +115,7 @@ class CaffeineLocalCache(
         if (logger.isDebugEnabled) {
             logger.debug("caffeine缓存 key={} putIfAbsent 缓存，缓存值：{}", key, JsonUtils.toJSONString(value))
         }
-        val flag = !allowNullValues && (value == null || value is NullValue)
+        val flag = !enableNull && (value == null || value is NullValue)
         if (flag) {
             return null
         }

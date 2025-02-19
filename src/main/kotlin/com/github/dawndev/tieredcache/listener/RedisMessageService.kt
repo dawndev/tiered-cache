@@ -1,13 +1,12 @@
 package com.github.dawndev.tieredcache.listener
 
-import com.github.dawndev.tieredcache.ICache
+import com.github.dawndev.tieredcache.core.ICache
 import com.github.dawndev.tieredcache.core.MultiLevelCache
 import com.github.dawndev.tieredcache.config.RedisPubSubMessage
 import com.github.dawndev.tieredcache.constg.RedisMessageEnum
-import com.github.dawndev.tieredcache.internal.CollectionUtils
 import com.github.dawndev.tieredcache.internal.Parameter
 import com.github.dawndev.tieredcache.internal.JsonUtils
-import com.github.dawndev.tieredcache.manage.AbstractCacheManager
+import com.github.dawndev.tieredcache.AbstractCacheManager
 import com.github.dawndev.tieredcache.redis.RedisDistributedLock
 import org.slf4j.LoggerFactory
 import java.util.concurrent.atomic.AtomicLong
@@ -39,7 +38,7 @@ class RedisMessageService(
             return
         }
         val messages = client.lrange(Parameter.getMessageRedisKey(), 0, maxOffset - oldOffset - 1, Parameter.GLOBAL_REDIS_SERIALIZER)
-        if (CollectionUtils.isEmpty(messages)) {
+        if (messages.isNullOrEmpty()) {
             return
         }
 
@@ -134,7 +133,7 @@ class RedisMessageService(
                 //  redis pub/sub 监听器
                 RedisMessageListener(cacheManager)
             } catch (e: Exception) {
-                logger.error("gwan-cache 清楚一级缓存异常：{}", e.message, e)
+                logger.error("tiered-cache 清楚一级缓存异常：{}", e.message, e)
             }
         }
     }

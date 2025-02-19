@@ -22,8 +22,28 @@ internal object Parameter {
         return String.format(MESSAGE_KEY, nameSpace)
     }
 
-    /**
-     * 缓存统计和消息推送序列化器
-     */
+    fun getRedisLockKey(key: String): String {
+        return key + "_sync_lock"
+    }
+
+    // 缓存统计和消息推送序列化器
     val GLOBAL_REDIS_SERIALIZER: RedisSerializer = JdkRedisSerializer()
+
+    val REDIS_CHANNEL: String = "tiered-cache-channel"
+
+    val WAIT_TIME = 500 // 刷新缓存等待时间，单位毫秒
+
+    const val REDIS_DEFAULT_PORT = 6379
+
+    const val LOCAL_HOST = "localhost"
+
+    const val REDIS_CONNECT_TIMEOUT = 3600
+
+    const val RELEASE_FAILED = 0L
+
+    const val RELEASE_SUCCESS = 1L
+
+    const val LOCK_SUCCESS = "OK"
+
+    const val UNLOCK_LUA: String = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end"
 }

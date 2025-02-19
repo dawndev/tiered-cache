@@ -1,7 +1,7 @@
 package com.github.dawndev.tieredcache.listener
 
 import com.github.dawndev.tieredcache.internal.NamedThreadFactory
-import com.github.dawndev.tieredcache.manage.AbstractCacheManager
+import com.github.dawndev.tieredcache.AbstractCacheManager
 import org.slf4j.LoggerFactory
 import java.util.*
 import java.util.concurrent.ScheduledThreadPoolExecutor
@@ -44,7 +44,7 @@ class RedisMessagePullTask(
                 redisMessageService.pull()
             } catch (e: Exception) {
                 e.printStackTrace()
-                logger.error("gwan-cache PULL 方式清楚一级缓存异常：{}", e.message, e)
+                logger.error("tiered-cache PULL 方式清楚一级缓存异常：{}", e.message, e)
             }
         }, 5, 30, TimeUnit.SECONDS)
     }
@@ -66,7 +66,7 @@ class RedisMessagePullTask(
                 redisMessageService.clearQueue()
             } catch (e: Exception) {
                 e.printStackTrace()
-                logger.error("gwan-cache 重置本地消息偏移量异常：{}", e.message, e)
+                logger.error("tiered-cache 重置本地消息偏移量异常：{}", e.message, e)
             }
         }, initialDelay, TimeUnit.DAYS.toMillis(1), TimeUnit.MILLISECONDS)
     }

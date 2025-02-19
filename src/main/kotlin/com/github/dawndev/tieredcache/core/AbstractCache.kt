@@ -1,11 +1,12 @@
 package com.github.dawndev.tieredcache.core
 
-import com.github.dawndev.tieredcache.ICache
 import com.github.dawndev.tieredcache.config.RedisPubSubMessage
 import com.github.dawndev.tieredcache.constg.RedisMessageEnum
 import com.github.dawndev.tieredcache.internal.NullValue
 import com.github.dawndev.tieredcache.listener.RedisPublisher
+import com.github.dawndev.tieredcache.metrics.CacheMetrics
 import com.github.dawndev.tieredcache.redis.client.RedisTemplate
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 
 
 /**
@@ -14,14 +15,20 @@ import com.github.dawndev.tieredcache.redis.client.RedisTemplate
  *  如果允许为NULL值，则需要在内部将NULL替换成{@link NullValue#INSTANCE} 对象
  *
  * @param name              缓存名称
- * @param allowNullValues   获取是否允许存在NULL值
+ * @param enableNull        获取是否允许存在NULL值
  *
  * @author Espresso
  */
 abstract class AbstractCache(
     override val name: String,
-    open val allowNullValues: Boolean
+    open val enableNull: Boolean
 ): ICache {
+
+    // 缓存指标
+    val metrics: CacheMetrics? by lazy {
+        CacheMetrics(SimpleMeterRegistry(), name)
+    }
+
 
     /**
      * Convert the given value from the internal store to a user value
@@ -31,7 +38,7 @@ abstract class AbstractCache(
      * @return the value to return to the user
      */
     protected open fun fromStoreValue(storeValue: Any?): Any? {
-        return if (allowNullValues && storeValue is NullValue) {
+        return if (enableNull && storeValue is NullValue) {
             null
         } else storeValue
     }
@@ -44,7 +51,7 @@ abstract class AbstractCache(
      * @return the value to store
      */
     protected open fun toStoreValue(userValue: Any?): Any? {
-        return if (allowNullValues && userValue == null) {
+        return if (enableNull && userValue == null) {
             NullValue
         } else userValue
     }

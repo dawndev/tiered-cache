@@ -3,30 +3,21 @@ package com.github.dawndev.tieredcache.core.remote
 import com.github.dawndev.tieredcache.redis.serializer.RedisSerializer
 import com.github.dawndev.tieredcache.redis.serializer.impl.StringRedisSerializer
 
-
-class RedisCacheKey(
+class RedisCacheKey private constructor(
     val keyElement: Any,
-    val serializer: RedisSerializer
-) {
-    /**
-     * 缓存名称
-     */
-    private var cacheName: String = ""
-
-    /**
-     * 是否使用缓存前缀
-     */
-    private var usePrefix = true
-
-    private val prefixSerializer1: RedisSerializer = StringRedisSerializer()
+    private val serializer: RedisSerializer,
+    private val cacheName: String,
+    private val usePrefix: Boolean,
+    private val prefixSerializer: RedisSerializer
+): RemoteKey {
 
     /**
      * 获取缓存key
      *
      * @return String
      */
-    fun getKey(): String {
-        val bytes = getKeyBytes() ?: return ""
+    override fun getKey(): String {
+        val bytes = this.getKeyBytes() ?: return ""
         return String(bytes)
     }
 
@@ -41,7 +32,8 @@ class RedisCacheKey(
             return rawKey
         }
         val prefix = getPrefix() ?: return null
-        val prefixedKey = prefix.copyOf(prefix.size + rawKey.size)
+        val prefixedKey = ByteArray(prefix.size + rawKey.size)
+        System.arraycopy(prefix, 0, prefixedKey, 0, prefix.size)
         System.arraycopy(rawKey, 0, prefixedKey, prefix.size, rawKey.size)
         return prefixedKey
     }
@@ -57,30 +49,28 @@ class RedisCacheKey(
      *
      * @return byte[]
      */
-    fun getPrefix(): ByteArray? {
-        return prefixSerializer1.serialize(if (cacheName.isBlank()) "$cacheName:" else "$cacheName:")
+    private fun getPrefix(): ByteArray? {
+        val prefix = if (cacheName.isBlank()) ":"
+        else "$cacheName:"
+        return prefixSerializer.serialize(prefix)
     }
 
-
-    /**
-     * 设置缓存名称
-     *
-     * @param cacheName cacheName
-     * @return RedisCacheKey
-     */
-    fun cacheName(cacheName: String): RedisCacheKey {
-        this.cacheName = cacheName
-        return this
+    companion object {
+        inline fun build(block: Builder.() -> Unit) = Builder().apply(block).build()
     }
 
-    /**
-     * 设置是否使用缓存前缀，默认使用
-     *
-     * @param usePrefix usePrefix
-     * @return RedisCacheKey
-     */
-    fun usePrefix(usePrefix: Boolean): RedisCacheKey {
-        this.usePrefix = usePrefix
-        return this
+    class Builder {
+        lateinit var keyElement: Any
+        var serializer: RedisSerializer = StringRedisSerializer()
+        var cacheName: String = ""
+        var enablePrefix: Boolean = true
+        var prefixSerializer: RedisSerializer = StringRedisSerializer()
+
+        fun build(): RedisCacheKey = RedisCacheKey(
+            keyElement, serializer, cacheName, enablePrefix, prefixSerializer
+        ).apply {
+            // pass
+        }
     }
+
 }
