@@ -49,7 +49,7 @@ class ShardedRedisTemplate(
     private val executorService: ExecutorService = Executors.newFixedThreadPool(10, NamedThreadFactory("tiered-cache-scan"))
 
     init {
-        val cluster = properties.cluster
+        val cluster = requireNotNull(properties.cluster)
         val parts = cluster.split("\\,")
         val redisURIs: ArrayList<RedisURI> = ArrayList(parts.size)
         for (part in parts) {

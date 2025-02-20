@@ -57,9 +57,9 @@ data class RemoteCacheOptions(
 ) {
     fun <T> option(option: CacheOption, value: T) {
         when (option) {
+            CacheOption.MILLIS_EXPIRE -> expiration = value as Long
             CacheOption.MILLIS_PRELOAD -> preloadTime = value as Long
             CacheOption.ENABLE_FORCE_REFRESH -> enableForceRefresh = value as Boolean
-            CacheOption.MILLIS_EXPIRE -> expiration = value as Long
             CacheOption.ENABLE_NULL -> enableNull = value as Boolean
             CacheOption.MAGNIFICATION -> magnification = value as Int
             CacheOption.ENABLE_PREFIX -> enablePrefix = value as Boolean

@@ -10,7 +10,7 @@ import com.github.dawndev.tieredcache.config.RedisConfigure
 object RedisClientFactory {
 
     fun createRedis(properties: RedisConfigure): RedisTemplate {
-        return if (properties.cluster.isNotBlank()) {
+        return if (!properties.cluster.isNullOrBlank()) {
             ShardedRedisTemplate(properties)
         } else {
             SingleRedisTemplate(properties)

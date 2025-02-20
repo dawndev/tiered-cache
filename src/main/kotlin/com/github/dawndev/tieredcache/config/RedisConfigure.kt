@@ -13,18 +13,15 @@ import kotlinx.serialization.Serializable
  * @param port
  * @param password
  * @param timeout
- * @param serializer
  */
 data class RedisConfigure(
     val database: Int,
-    val cluster: String = "",
+    val cluster: String? = "",
     val host: String = Parameter.LOCAL_HOST,
     val port: Int = Parameter.REDIS_DEFAULT_PORT,
     val password: String = "",
     val timeout: Int = Parameter.REDIS_CONNECT_TIMEOUT,
-    val serializer: String
 )
-
 
 /**
  * Redis pub sub message
