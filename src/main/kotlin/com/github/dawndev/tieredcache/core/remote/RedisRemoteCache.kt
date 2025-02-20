@@ -204,18 +204,18 @@ open class RedisRemoteCache(
 
         return try {
             // 加载数据
-            val result = putValue(key, valueLoader.call() as Any)
+            val result = this.putValue(key, valueLoader.call() as Any)
             if (logger.isDebugEnabled) {
                 logger.debug("redis缓存 key={} 执行被缓存的方法，并将其放入缓存, 耗时：{}。数据:{}", key.getKey(), System.currentTimeMillis() - start, JsonUtils.toJSONString(result))
             }
-            fromStoreValue(result) as T
+            super.fromStoreValue(result) as T
         } catch (e: java.lang.Exception) {
             throw CacheLoadException(key.getKey(), e)
         }
     }
 
     private fun putValue(key: RedisCacheKey, value: Any?): Any? {
-        val result = toStoreValue(value)
+        val result = super.toStoreValue(value)
         // redis 缓存不允许直接存NULL，如果结果返回NULL需要删除缓存
         if (result == null) {
             redisClient.delete(key.getKey())
@@ -241,14 +241,15 @@ open class RedisRemoteCache(
     /**
      * 软刷新，直接修改缓存时间
      *
-     * @param redisCacheKey [RedisCacheKey]
+     * @param remoteKey [RedisCacheKey]
      */
-    override fun softRefresh(redisCacheKey: RedisCacheKey) {
+    override fun softRefresh(remoteKey: RedisCacheKey) {
         // 加一个分布式锁，只放一个请求去刷新缓存
-        val redisLock = RedisDistributedLock(redisClient, redisCacheKey.getKey() + "_lock")
+        val lockKey = Parameter.getRedisLockKey(remoteKey.getKey())
+        val redisLock = RedisDistributedLock(redisClient, lockKey)
         try {
             if (redisLock.tryLock()) {
-                redisClient.expire(redisCacheKey.getKey(), expiration, TimeUnit.MILLISECONDS)
+                redisClient.expire(remoteKey.getKey(), expiration, TimeUnit.MILLISECONDS)
             }
         } catch (e: Exception) {
             logger.error(e.message, e)
@@ -303,13 +304,13 @@ open class RedisRemoteCache(
     /**
      * 判断是否需要刷新缓存
      *
-     * @param redisCacheKey 缓存key
+     * @param remoteKey 缓存key
      * @param preloadTime   预加载时间（经过计算后的时间）
      * @return boolean
      */
-    override fun isRefresh(redisCacheKey: RedisCacheKey, preloadTime: Long): Boolean {
+    override fun isRefresh(remoteKey: RedisCacheKey, preloadTime: Long): Boolean {
         // 获取锁之后再判断一下过期时间，看是否需要加载数据
-        val ttl = redisClient.getExpire(redisCacheKey.getKey())
+        val ttl = redisClient.getExpire(remoteKey.getKey())
         // -2表示key不存在
         return if (ttl == -2L) {
             true

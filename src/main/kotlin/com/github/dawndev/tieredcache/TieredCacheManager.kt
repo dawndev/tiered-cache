@@ -34,8 +34,7 @@ import com.github.dawndev.tieredcache.redis.client.RedisTemplate
  * <p>
  *     这个应该是单例的
  *
- * @property client RedisTemplate
- * @constructor
+ * @property client [RedisTemplate]
  */
 class TieredCacheManager(
     override var client: RedisTemplate

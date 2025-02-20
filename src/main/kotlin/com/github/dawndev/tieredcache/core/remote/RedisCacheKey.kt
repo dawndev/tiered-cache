@@ -17,7 +17,8 @@ class RedisCacheKey private constructor(
      * @return String
      */
     override fun getKey(): String {
-        val bytes = this.getKeyBytes() ?: return ""
+        val bytes = this.getKeyBytes()
+            ?: return ""
         return String(bytes)
     }
 
@@ -27,7 +28,7 @@ class RedisCacheKey private constructor(
      * @return byte[]
      */
     fun getKeyBytes(): ByteArray? {
-        val rawKey = serializeKeyElement() ?: return null
+        val rawKey = this.serializeKeyElement() ?: return null
         if (!usePrefix) {
             return rawKey
         }
