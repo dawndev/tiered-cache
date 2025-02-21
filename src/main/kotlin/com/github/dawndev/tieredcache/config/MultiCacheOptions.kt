@@ -9,7 +9,7 @@ package com.github.dawndev.tieredcache.config
  *
  * @author Espresso
  */
-data class MultiCacheOptions private constructor(
+class MultiCacheOptions private constructor(
     val localOptions: LocalCacheOptions,
     val remoteOptions: RemoteCacheOptions,
     val enableLocal: Boolean = true,

@@ -34,12 +34,19 @@ import com.github.dawndev.tieredcache.core.ICache
 interface CacheManager {
 
     /**
-     * 根据缓存名称返回对应的[Collection].
+     * 根据缓存名称返回对应的[ICache]
      *
-     * @param name 缓存的名称 (不能为 `null`)
-     * @return 返回对应名称的Cache, 如果没找到返回 `null`
+     * @param name String
+     * @return ICache?
      */
-    fun getCache(name: String): Collection<ICache>
+    fun getCache(name: String): ICache?
+
+    /**
+     * 获取所有缓存名称的集合
+     *
+     * @return 所有缓存名称的集合
+     */
+    fun getCacheNames(): Collection<String>
 
     /**
      * 根据缓存名称返回对应的[ICache]，如果没有找到就新建一个并放到容器
@@ -48,12 +55,14 @@ interface CacheManager {
      * @param multiCacheOptions     多级缓存配置
      * @return [ICache]
      */
-    fun getCache(name: String, multiCacheOptions: MultiCacheOptions): ICache?
+    fun registerCache(name: String, multiCacheOptions: MultiCacheOptions): ICache?
 
     /**
-     * 获取所有缓存名称的集合
-     *
-     * @return 所有缓存名称的集合
+     * 取消注册[ICache]
+     * @param name String
      */
-    fun getCacheNames(): Collection<String>
+    fun unregisterCache(name: String)
+
+    @Throws(Exception::class)
+    fun destroy()
 }

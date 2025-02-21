@@ -1,6 +1,5 @@
 package com.github.dawndev.tieredcache.listener
 
-import com.github.dawndev.tieredcache.core.ICache
 import com.github.dawndev.tieredcache.core.MultiLevelCache
 import com.github.dawndev.tieredcache.config.RedisPubSubMessage
 import com.github.dawndev.tieredcache.constg.RedisMessageEnum
@@ -56,34 +55,32 @@ class RedisMessageService(
             }
 
             // 根据缓存名称获取多级缓存，可能有多个
-            val caches: Collection<ICache> = cacheManager.getCache(redisPubSubMessage.cacheName)
-            for (cache in caches) {
-                // 判断缓存是否是多级缓存
-                if (cache !is MultiLevelCache)
-                    continue
+            val cache = cacheManager.getCache(redisPubSubMessage.cacheName)
+            // 判断缓存是否是多级缓存
+            if (cache !is MultiLevelCache)
+                continue
 
-                when (redisPubSubMessage.messageType) {
-                    RedisMessageEnum.EVICT -> {
-                        if (RedisPubSubMessage.SOURCE == redisPubSubMessage.source) {
-                            cache.remoteCache.evict(redisPubSubMessage.key)
-                        }
+            when (redisPubSubMessage.messageType) {
+                RedisMessageEnum.EVICT -> {
+                    if (RedisPubSubMessage.SOURCE == redisPubSubMessage.source) {
+                        cache.remoteCache.evict(redisPubSubMessage.key)
+                    }
 
-                        // 获取一级缓存，并删除一级缓存数据
-                        cache.localCache.evict(redisPubSubMessage.key)
-                        logger.info("删除一级缓存 {} 数据,key={}", redisPubSubMessage.cacheName, redisPubSubMessage.key)
+                    // 获取一级缓存，并删除一级缓存数据
+                    cache.localCache.evict(redisPubSubMessage.key)
+                    logger.info("删除一级缓存 {} 数据,key={}", redisPubSubMessage.cacheName, redisPubSubMessage.key)
+                }
+                RedisMessageEnum.CLEAR -> {
+                    if (RedisPubSubMessage.SOURCE == redisPubSubMessage.source) {
+                        cache.remoteCache.clear()
                     }
-                    RedisMessageEnum.CLEAR -> {
-                        if (RedisPubSubMessage.SOURCE == redisPubSubMessage.source) {
-                            cache.remoteCache.clear()
-                        }
 
-                        // 获取一级缓存，并删除一级缓存数据
-                        cache.localCache.clear()
-                        logger.info("清除一级缓存 {} 数据", redisPubSubMessage.cacheName)
-                    }
-                    else -> {
-                        logger.error("接收到没有定义的消息数据")
-                    }
+                    // 获取一级缓存，并删除一级缓存数据
+                    cache.localCache.clear()
+                    logger.info("清除一级缓存 {} 数据", redisPubSubMessage.cacheName)
+                }
+                else -> {
+                    logger.error("接收到没有定义的消息数据")
                 }
             }
         }

@@ -40,13 +40,10 @@ abstract class AbstractCacheManager(
     open var client: RedisTemplate
 ) : CacheManager {
 
-    /**
-     * 缓存容器
-     * <p>
-     *     外层key是cache_name
-     *     里层key是[一级缓存有效时间-二级缓存有效时间]
-     */
-    private val cacheContainer: ConcurrentMap<String, ConcurrentMap<String, ICache>> = ConcurrentHashMap(16)
+    private val logger = LoggerFactory.getLogger(AbstractCacheManager::class.java)
+
+    // 缓存容器
+    private val cacheContainers: ConcurrentMap<String, ICache> = ConcurrentHashMap(16)
 
     /**
      * 缓存名称容器
@@ -54,11 +51,9 @@ abstract class AbstractCacheManager(
     @Volatile
     private var cacheNames: MutableSet<String> = LinkedHashSet()
 
-    override fun getCache(name: String): Collection<ICache> {
-        val cacheMap = cacheContainer[name]
-        return if (cacheMap.isNullOrEmpty()) {
-            emptyList()
-        } else cacheMap.values
+    override fun getCache(name: String): ICache? {
+        val cache = this.cacheContainers[name]
+        return cache
     }
 
     /**
@@ -67,51 +62,35 @@ abstract class AbstractCacheManager(
      * @param multiCacheOptions MultiCacheOptions
      * @return Cache?
      */
-    override fun getCache(name: String, multiCacheOptions: MultiCacheOptions): ICache? {
-
-        // 第一次获取缓存Cache，如果有直接返回,如果没有加锁往容器里里面放Cache
-        var cacheMap = cacheContainer[name]
-        if (!cacheMap.isNullOrEmpty()) {
-            val cache = cacheMap[multiCacheOptions.internalKey]
-            if (cache != null) {
-                return cache
-            }
-        }
-
-        // 第二次获取缓存Cache，加锁往容器里里面放Cache
-        synchronized(cacheContainer) {
-            cacheMap = cacheContainer[name]
-            if (!cacheMap.isNullOrEmpty()) {
-                // 从容器中获取缓存
-                val cache = cacheMap!![multiCacheOptions.internalKey]
-                if (cache != null) {
-                    return cache
-                }
-            } else {
-                cacheMap = ConcurrentHashMap(16)
-                cacheContainer[name] = cacheMap
-                // 更新缓存名称
-                updateCacheNames(name)
-            }
-
-            // 新建一个Cache对象
-            var cache = this.getMissingCache(name, multiCacheOptions)
-            if (cache != null) {
-                // 装饰Cache对象
-                cache = this.decorateCache(cache)
-                // 将新的Cache对象放到容器
-                cacheMap!![multiCacheOptions.internalKey] = cache
-                if (cacheMap!!.size > 1) {
-
-                    logger.warn("缓存名称为 {} 的缓存,存在两个不同的过期时间配置，请一定注意保证缓存的key唯一性，否则会出现缓存过期时间错乱的情况", name)
-                }
-            }
+    override fun registerCache(name: String, multiCacheOptions: MultiCacheOptions): ICache? {
+        val cache = this.getCache(name)
+        if (null != cache) {
+            logger.warn("name[{}] 已经注册过了~", name)
             return cache
         }
+
+        // 第一次获取缓存Cache，如果有直接返回,如果没有加锁往容器里里面放Cache
+        synchronized(cacheContainers) {
+            // 新建一个Cache对象
+            var instance = this.getMissingCache(name, multiCacheOptions)
+            if (instance != null) {
+                // 装饰Cache对象
+                instance = this.decorateCache(instance)
+                cacheContainers[name] = instance
+                this.updateCacheNames(name)
+            }
+            logger.debug("成功新建cache， {}", name)
+            return instance
+        }
+
     }
 
     override fun getCacheNames(): Collection<String> {
         return cacheNames
+    }
+
+    override fun unregisterCache(name: String) {
+        cacheContainers.remove(name)
     }
 
     /**
@@ -147,8 +126,8 @@ abstract class AbstractCacheManager(
      *
      * @return 返回缓存容器
      */
-    fun getCacheContainer(): ConcurrentMap<String, ConcurrentMap<String, ICache>> {
-        return cacheContainer
+    fun getCacheContainer(): ConcurrentMap<String, ICache> {
+        return cacheContainers
     }
 
     @Throws(Exception::class)
@@ -162,13 +141,12 @@ abstract class AbstractCacheManager(
     }
 
     @Throws(Exception::class)
-    fun destroy() {
+    override fun destroy() {
         //RedisPubSubThreadTaskUtils.close()
         //BeanFactory.getBean(StatsService::class.java).shutdownExecutor()
     }
 
     companion object {
         val cacheManagers: HashSet<AbstractCacheManager> = LinkedHashSet()
-        private val logger = LoggerFactory.getLogger(AbstractCacheManager::class.java)
     }
 }
