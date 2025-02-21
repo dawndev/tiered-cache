@@ -9,7 +9,7 @@ package com.github.dawndev.tieredcache.config
  *
  * @author Espresso
  */
-data class MultiCacheOptions(
+data class MultiCacheOptions private constructor(
     val localOptions: LocalCacheOptions,
     val remoteOptions: RemoteCacheOptions,
     val enableLocal: Boolean = true,
@@ -30,12 +30,21 @@ data class MultiCacheOptions(
         // 一级缓存有效时间-二级缓存有效时间
         val sb = StringBuilder()
         sb.append(localOptions.expiration)
-        sb.append(SPLIT)
+        sb.append("-")
         sb.append(remoteOptions.expiration)
         internalKey = sb.toString()
     }
 
-    companion object {
-        val SPLIT: String = "-"
+    class Builder {
+        private lateinit var localOptions: LocalCacheOptions
+        private lateinit var remoteOptions: RemoteCacheOptions
+        private var enableLocal: Boolean = true
+
+        fun localOptions(op: LocalCacheOptions) = apply { this.localOptions = op }
+        fun remoteOptions(op: RemoteCacheOptions) = apply { this.remoteOptions = op }
+        fun enableLocal(enableLocal: Boolean) = apply { this.enableLocal = enableLocal }
+
+        fun build() = MultiCacheOptions(localOptions, remoteOptions, enableLocal)
     }
+
 }
