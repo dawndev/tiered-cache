@@ -2,6 +2,7 @@ package com.github.dawndev.tieredcache.core
 
 import com.github.dawndev.tieredcache.core.remote.RemoteKey
 import com.github.dawndev.tieredcache.internal.NullValue
+import com.github.dawndev.tieredcache.internal.taskIfDebug
 import org.slf4j.LoggerFactory
 import java.util.concurrent.Callable
 
@@ -18,7 +19,7 @@ abstract class AbstractRemoteCache<REMOTE_KEY: RemoteKey>(
     /**
      * 刷新缓存数据
      */
-    open protected fun <T> refreshCache(remoteKey: REMOTE_KEY, resultType: Class<T>, valueLoader: Callable<T>, result: Any?) {
+    protected open fun <T> refreshCache(remoteKey: REMOTE_KEY, resultType: Class<T>, valueLoader: Callable<T>, result: Any?) {
         var preload = preloadTime
         // 允许缓存NULL值，则自动刷新时间也要除以倍数
         val flag = enableNull && (result is NullValue || result == null)
@@ -28,14 +29,10 @@ abstract class AbstractRemoteCache<REMOTE_KEY: RemoteKey>(
         if (this.isRefresh(remoteKey, preload)) {
             // 判断是否需要强制刷新在开启刷新线程
             if (!enableForceRefresh) {
-                if (logger.isDebugEnabled) {
-                    logger.debug("redis缓存 key={} 软刷新缓存模式", remoteKey.getKey())
-                }
+                logger.taskIfDebug("二级缓存 key={} 软刷新缓存模式", remoteKey.getKey())
                 this.softRefresh(remoteKey)
             } else {
-                if (logger.isDebugEnabled) {
-                    logger.debug("redis缓存 key={} 强刷新缓存模式", remoteKey.getKey())
-                }
+                logger.taskIfDebug("二级缓存 key={} 强刷新缓存模式", remoteKey.getKey())
                 this.forceRefresh(remoteKey, resultType, valueLoader, preload)
             }
         }

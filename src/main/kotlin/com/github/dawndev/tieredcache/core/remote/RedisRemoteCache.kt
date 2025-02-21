@@ -4,9 +4,8 @@ import com.github.dawndev.tieredcache.config.RemoteCacheOptions
 import com.github.dawndev.tieredcache.core.AbstractRemoteCache
 import com.github.dawndev.tieredcache.core.ICache
 import com.github.dawndev.tieredcache.exception.CacheLoadException
-import com.github.dawndev.tieredcache.internal.AwaitThreadContainer
+import com.github.dawndev.tieredcache.internal.*
 import com.github.dawndev.tieredcache.internal.JsonUtils
-import com.github.dawndev.tieredcache.internal.NullValue
 import com.github.dawndev.tieredcache.internal.Parameter
 import com.github.dawndev.tieredcache.redis.RedisDistributedLock
 import com.github.dawndev.tieredcache.redis.client.RedisTemplate
@@ -81,9 +80,8 @@ open class RedisRemoteCache(
 
 
         val redisCacheKey = this.getRedisCacheKey(key)
-        if (logger.isDebugEnabled) {
-            logger.debug("redis缓存 key= {} 查询redis缓存如果没有命中，从数据库获取数据", redisCacheKey.getKey())
-        }
+        logger.taskIfDebug("redis缓存 key= {} 查询redis缓存如果没有命中，从数据库获取数据", redisCacheKey.getKey())
+
 
         // 先获取缓存，如果有直接返回
         val result = redisClient.get(redisCacheKey.getKey(), resultType)
@@ -99,16 +97,12 @@ open class RedisRemoteCache(
 
     override fun put(key: String, value: Any?) {
         val redisCacheKey = this.getRedisCacheKey(key)
-        if (logger.isDebugEnabled) {
-            logger.debug("redis缓存 key= {} put缓存，缓存值：{}", redisCacheKey.getKey(), JsonUtils.toJSONString(value))
-        }
+        logger.taskIfDebug("redis缓存 key= {} put缓存，缓存值：{}", redisCacheKey.getKey(), JsonUtils.toJSONString(value))
         putValue(redisCacheKey, value)
     }
 
     override fun <T> putIfAbsent(key: String, value: Any?, resultType: Class<T>): T? {
-        if (logger.isDebugEnabled) {
-            logger.debug("redis缓存 key= {} putIfAbsent缓存，缓存值：{}", this.getRedisCacheKey(key).getKey(), JsonUtils.toJSONString(value))
-        }
+        logger.taskIfDebug("redis缓存 key= {} putIfAbsent缓存，缓存值：{}", this.getRedisCacheKey(key).getKey(), JsonUtils.toJSONString(value))
         val result = get(key, resultType)
         if (result != null) {
             return result
@@ -166,26 +160,22 @@ open class RedisRemoteCache(
                 // 先取缓存，如果有直接返回，没有再去做拿锁操作
                 val result = redisClient.get(redisCacheKey.getKey(), resultType)
                 if (result != null) {
-                    if (logger.isDebugEnabled) {
-                        logger.debug("redis缓存 key= {} 获取到锁后查询查询缓存命中，不需要执行被缓存的方法", redisCacheKey.getKey())
-                    }
+                    logger.taskIfDebug("redis缓存 key= {} 获取到锁后查询查询缓存命中，不需要执行被缓存的方法", redisCacheKey.getKey())
+
                     return fromStoreValue(result) as T?
                 }
 
                 // 获取分布式锁去后台查询数据
                 if (redisLock.lock()) {
                     val t = loaderAndPutValue(redisCacheKey, valueLoader)
-                    if (logger.isDebugEnabled) {
-                        logger.debug("redis缓存 key= {} 从数据库获取数据完毕，唤醒所有等待线程", redisCacheKey.getKey())
-                    }
+                    logger.taskIfDebug("redis缓存 key= {} 从数据库获取数据完毕，唤醒所有等待线程", redisCacheKey.getKey())
+
                     // 唤醒线程
                     container.signalAll(redisCacheKey.getKey())
                     return t
                 }
                 // 线程等待
-                if (logger.isDebugEnabled) {
-                    logger.debug("redis缓存 key= {} 从数据库获取数据未获取到锁，进入等待状态，等待{}毫秒", redisCacheKey.getKey(), Parameter.WAIT_TIME)
-                }
+                logger.taskIfDebug("redis缓存 key= {} 从数据库获取数据未获取到锁，进入等待状态，等待{}毫秒", redisCacheKey.getKey(), Parameter.WAIT_TIME)
                 container.await(redisCacheKey.getKey(), Parameter.WAIT_TIME)
             } catch (e: java.lang.Exception) {
                 container.signalAll(redisCacheKey.getKey())
@@ -205,9 +195,7 @@ open class RedisRemoteCache(
         return try {
             // 加载数据
             val result = this.putValue(key, valueLoader.call() as Any)
-            if (logger.isDebugEnabled) {
-                logger.debug("redis缓存 key={} 执行被缓存的方法，并将其放入缓存, 耗时：{}。数据:{}", key.getKey(), System.currentTimeMillis() - start, JsonUtils.toJSONString(result))
-            }
+            logger.taskIfDebug("redis缓存 key={} 执行被缓存的方法，并将其放入缓存, 耗时：{}。数据:{}", key.getKey(), System.currentTimeMillis() - start, JsonUtils.toJSONString(result))
             super.fromStoreValue(result) as T
         } catch (e: java.lang.Exception) {
             throw CacheLoadException(key.getKey(), e)

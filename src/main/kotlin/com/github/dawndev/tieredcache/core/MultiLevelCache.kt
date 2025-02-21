@@ -4,6 +4,7 @@ import com.github.dawndev.tieredcache.config.MultiCacheOptions
 import com.github.dawndev.tieredcache.config.RedisPubSubMessage
 import com.github.dawndev.tieredcache.constg.RedisMessageEnum
 import com.github.dawndev.tieredcache.internal.JsonUtils
+import com.github.dawndev.tieredcache.internal.taskIfDebug
 import com.github.dawndev.tieredcache.listener.RedisPublisher
 import com.github.dawndev.tieredcache.redis.client.RedisTemplate
 import org.slf4j.LoggerFactory
@@ -52,9 +53,8 @@ class MultiLevelCache(
     override fun <T> get(key: String, resultType: Class<T>): T? {
         if (enableLocalCache) {
             val result = localCache.get(key, resultType)
-            if (logger.isDebugEnabled) {
-                logger.debug("查询一级缓存。 key={},返回值是:{}", key, JsonUtils.encodeToString(result))
-            }
+            logger.taskIfDebug("查询一级缓存。 key={},返回值是:{}", key, JsonUtils.encodeToString(result))
+
             if (result != null) {
                 return super.fromStoreValue(result) as T
             }
@@ -64,9 +64,8 @@ class MultiLevelCache(
         if (enableLocalCache) {
             localCache.putIfAbsent(key, result as Any, resultType);
         }
-        if (logger.isDebugEnabled) {
-            logger.debug("查询二级缓存,并将数据放到一级缓存。 key={},返回值是:{}", key, JsonUtils.encodeToString(result))
-        }
+        logger.taskIfDebug("查询二级缓存,并将数据放到一级缓存。 key={},返回值是:{}", key, JsonUtils.encodeToString(result))
+
         return result
     }
 
@@ -74,9 +73,8 @@ class MultiLevelCache(
     override fun <T> get(key: String, resultType: Class<T>, valueLoader: Callable<T>): T? {
         if (enableLocalCache) {
             val result = localCache.get(key, resultType)
-            if (logger.isDebugEnabled) {
-                logger.debug("查询一级缓存。 key={},返回值是:{}", key, JsonUtils.encodeToString(result))
-            }
+            logger.taskIfDebug("查询一级缓存。 key={},返回值是:{}", key, JsonUtils.encodeToString(result))
+
             if (result != null) {
                 return fromStoreValue(result) as T
             }
@@ -86,9 +84,7 @@ class MultiLevelCache(
         if (enableLocalCache) {
             localCache.putIfAbsent(key, result as Any, resultType)
         }
-        if (logger.isDebugEnabled) {
-            logger.debug("查询二级缓存,并将数据放到一级缓存。 key={},返回值是:{}", key, JsonUtils.encodeToString(result))
-        }
+        logger.taskIfDebug("查询二级缓存,并将数据放到一级缓存。 key={},返回值是:{}", key, JsonUtils.encodeToString(result))
         return result
     }
 

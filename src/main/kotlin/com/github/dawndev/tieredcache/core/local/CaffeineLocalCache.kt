@@ -12,6 +12,7 @@ import com.github.dawndev.tieredcache.core.LocalCache
 import com.github.dawndev.tieredcache.exception.CacheLoadException
 import com.github.dawndev.tieredcache.internal.JsonUtils
 import com.github.dawndev.tieredcache.internal.NullValue
+import com.github.dawndev.tieredcache.internal.taskIfDebug
 import java.time.Duration
 
 /**
@@ -65,10 +66,7 @@ class CaffeineLocalCache(
 
 
     override fun <T> get(key: String, resultType: Class<T>): T? {
-        if (logger.isDebugEnabled) {
-            logger.debug("caffeine缓存 key={} 获取缓存", key)
-        }
-
+        logger.taskIfDebug("caffeine缓存 key={} 获取缓存", key)
         return if (cache is LoadingCache<*, *>) {
             (cache as LoadingCache<Any?, Any?>)[key] as T?
         } else cache.getIfPresent(key) as T?
@@ -76,10 +74,7 @@ class CaffeineLocalCache(
 
     @SuppressWarnings("unchecked")
     override fun <T> get(key: String, resultType: Class<T>, valueLoader: Callable<T>): T? {
-        if (logger.isDebugEnabled) {
-            logger.debug("caffeine缓存 key={} 获取缓存， 如果没有命中就走库加载缓存", key)
-        }
-
+        logger.taskIfDebug("caffeine缓存 key={} 获取缓存， 如果没有命中就走库加载缓存", key)
         val result = cache[key, { _ -> loaderValue(key, valueLoader) }]
 
         // 如果不允许存NULL值 直接删除NULL值缓存
@@ -93,18 +88,15 @@ class CaffeineLocalCache(
     override fun put(key: String, value: Any?) {
         // 允许存NULL值
         if (enableNull) {
-            if (logger.isDebugEnabled) {
-                logger.debug("caffeine缓存 key={} put缓存，缓存值：{}", key, JsonUtils.toJSONString(value))
-            }
+            logger.taskIfDebug("caffeine缓存 key={} put缓存，缓存值：{}", key, JsonUtils.toJSONString(value))
             this.storeValue(key, value)
             return
         }
 
         // 不允许存NULL值
         if (value != null && value !is NullValue) {
-            if (logger.isDebugEnabled) {
-                logger.debug("caffeine缓存 key={} put缓存，缓存值：{}", key, JsonUtils.toJSONString(value))
-            }
+            logger.taskIfDebug("caffeine缓存 key={} put缓存，缓存值：{}", key, JsonUtils.toJSONString(value))
+
             this.storeValue(key, value)
             return
         }
@@ -112,9 +104,8 @@ class CaffeineLocalCache(
     }
 
     override fun <T> putIfAbsent(key: String, value: Any?, resultType: Class<T>): T? {
-        if (logger.isDebugEnabled) {
-            logger.debug("caffeine缓存 key={} putIfAbsent 缓存，缓存值：{}", key, JsonUtils.toJSONString(value))
-        }
+        logger.taskIfDebug("caffeine缓存 key={} putIfAbsent 缓存，缓存值：{}", key, JsonUtils.toJSONString(value))
+
         val flag = !enableNull && (value == null || value is NullValue)
         if (flag) {
             return null
@@ -124,9 +115,7 @@ class CaffeineLocalCache(
     }
 
     override fun evict(key: String) {
-        if (logger.isDebugEnabled) {
-            logger.debug("caffeine缓存 key={} 清除缓存", key)
-        }
+        logger.taskIfDebug("caffeine缓存 key={} 清除缓存", key)
         cache.invalidate(key)
     }
 
