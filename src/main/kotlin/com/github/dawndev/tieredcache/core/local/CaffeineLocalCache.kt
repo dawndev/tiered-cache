@@ -10,9 +10,12 @@ import com.github.benmanes.caffeine.cache.LoadingCache
 import com.github.dawndev.tieredcache.constg.ExpireModeEnum
 import com.github.dawndev.tieredcache.core.LocalCache
 import com.github.dawndev.tieredcache.exception.CacheLoadException
+import com.github.dawndev.tieredcache.internal.*
 import com.github.dawndev.tieredcache.internal.JsonUtils
-import com.github.dawndev.tieredcache.internal.NullValue
+import com.github.dawndev.tieredcache.internal.fromStoredValue
 import com.github.dawndev.tieredcache.internal.taskIfDebug
+import com.github.dawndev.tieredcache.metrics.CacheMetrics
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import java.time.Duration
 
 /**
@@ -33,17 +36,26 @@ class CaffeineLocalCache(
     private val enableStats: Boolean
 ) : AbstractCache(name, enableNull), LocalCache {
 
-    private val cache: Cache<Any, Any> by lazy {
+    // 缓存指标
+    val metrics: CacheMetrics by lazy {
+        CacheMetrics(SimpleMeterRegistry(), name)
+    }
+
+    private val caffeine: Cache<Any, Any> by lazy {
         val builder = Caffeine.newBuilder()
         builder.initialCapacity(initialCapacity)
         builder.maximumSize(maximumSize)
         builder.softValues()
+        if (enableStats) {
+            // 开启统计, 对性能有一定影响, 生产建议关闭
+            builder.recordStats()
+        }
         when (expireMode) {
             ExpireModeEnum.WRITE -> builder.expireAfterWrite(Duration.ofMillis(expireTime))
             ExpireModeEnum.ACCESS -> builder.expireAfterAccess(Duration.ofMillis(expireTime))
         }
         // 根据Caffeine builder创建 Cache 对象
-        logger.debug("caffeine init~")
+        logger.debug("caffeine init, enableStats:$enableStats")
         builder.build()
     }
 
@@ -62,27 +74,27 @@ class CaffeineLocalCache(
 
 
     override val nativeRef: Any
-        get() = this.cache
+        get() = this.caffeine
 
 
     override fun <T> get(key: String, resultType: Class<T>): T? {
         logger.taskIfDebug("caffeine缓存 key={} 获取缓存", key)
-        return if (cache is LoadingCache<*, *>) {
-            (cache as LoadingCache<Any?, Any?>)[key] as T?
-        } else cache.getIfPresent(key) as T?
+        return if (caffeine is LoadingCache<*, *>) {
+            (caffeine as LoadingCache<Any?, Any?>)[key] as T?
+        } else caffeine.getIfPresent(key) as T?
     }
 
     @SuppressWarnings("unchecked")
     override fun <T> get(key: String, resultType: Class<T>, valueLoader: Callable<T>): T? {
         logger.taskIfDebug("caffeine缓存 key={} 获取缓存， 如果没有命中就走库加载缓存", key)
-        val result = cache[key, { _ -> loaderValue(key, valueLoader) }]
+        val result = caffeine[key, { _ -> loaderValue(key, valueLoader) }]
 
         // 如果不允许存NULL值 直接删除NULL值缓存
         val isEvict = !enableNull && (result == null || result is NullValue)
         if (isEvict) {
             evict(key)
         }
-        return fromStoreValue(result) as T?
+        return result.fromStoredValue(enableNull) as T?
     }
 
     override fun put(key: String, value: Any?) {
@@ -110,18 +122,20 @@ class CaffeineLocalCache(
         if (flag) {
             return null
         }
-        val result = cache[key, { _ -> toStoreValue(value) }]
-        return fromStoreValue(result) as T?
+        val result = caffeine[key, { _ -> value.toStoredValue(enableNull) }]
+        return result.fromStoredValue(enableNull) as T?
     }
 
     override fun evict(key: String) {
         logger.taskIfDebug("caffeine缓存 key={} 清除缓存", key)
-        cache.invalidate(key)
+        caffeine.invalidate(key)
+        metrics.updateCacheSize(caffeine.estimatedSize())
     }
 
     override fun clear() {
         logger.debug("caffeine缓存 name={} 清空缓存", name)
-        cache.invalidateAll()
+        caffeine.invalidateAll()
+        metrics.updateCacheSize(caffeine.estimatedSize())
     }
 
 
@@ -130,28 +144,29 @@ class CaffeineLocalCache(
      */
     private fun <T> loaderValue(key: Any, valueLoader: Callable<T>): Any? {
 
+        val sample = this.metrics.startTimer()
         return try {
             val t = valueLoader.call()
-            if (logger.isDebugEnabled) {
-                logger.debug("caffeine缓存 key={} 从库加载缓存{}", key, JsonUtils.toJSONString(t))
-            }
-
-            toStoreValue(t)
+            logger.taskIfDebug("caffeine缓存 key={} 从库加载缓存{}", key, JsonUtils.toJSONString(t))
+            t.toStoredValue(enableNull)
         } catch (e: Exception) {
+            this.metrics.recordLoadError(name)
             throw CacheLoadException(key, e)
+        } finally {
+            this.metrics.stopTimer(sample)
         }
     }
 
     private fun storeValue(key: String, userValue: Any?) {
-        val v = super.toStoreValue(userValue)
+        val v = userValue.toStoredValue(enableNull)
         if (v == null) {
             return
         }
-        cache.put(key, v)
+        caffeine.put(key, v)
     }
 
     override fun estimatedSize(): Long {
-        return cache.estimatedSize()
+        return caffeine.estimatedSize()
     }
 
     companion object {

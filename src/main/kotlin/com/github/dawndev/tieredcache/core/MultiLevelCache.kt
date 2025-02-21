@@ -4,6 +4,7 @@ import com.github.dawndev.tieredcache.config.MultiCacheOptions
 import com.github.dawndev.tieredcache.config.RedisPubSubMessage
 import com.github.dawndev.tieredcache.constg.RedisMessageEnum
 import com.github.dawndev.tieredcache.internal.JsonUtils
+import com.github.dawndev.tieredcache.internal.fromStoredValue
 import com.github.dawndev.tieredcache.internal.taskIfDebug
 import com.github.dawndev.tieredcache.listener.RedisPublisher
 import com.github.dawndev.tieredcache.redis.client.RedisTemplate
@@ -21,10 +22,10 @@ import java.util.concurrent.Callable
  * @param name                 缓存名称
  * @param multiCacheSetting    多级缓存配置
  */
-class MultiLevelCache(
+open class MultiLevelCache(
     private val client: RedisTemplate,
-    val localCache: ICache,
-    val remoteCache: ICache,
+    open val localCache: ICache,
+    open val remoteCache: ICache,
     private val enableLocalCache: Boolean,
     override val name: String,
     private val multiCacheSetting: MultiCacheOptions,
@@ -46,6 +47,8 @@ class MultiLevelCache(
         multiCacheSetting.enableNull
     )
 
+    private val logger = LoggerFactory.getLogger(MultiLevelCache::class.java)
+
     override val nativeRef: Any
         get() = this
 
@@ -56,7 +59,7 @@ class MultiLevelCache(
             logger.taskIfDebug("查询一级缓存。 key={},返回值是:{}", key, JsonUtils.encodeToString(result))
 
             if (result != null) {
-                return super.fromStoreValue(result) as T
+                return result.fromStoredValue(enableNull) as T
             }
         }
 
@@ -76,7 +79,7 @@ class MultiLevelCache(
             logger.taskIfDebug("查询一级缓存。 key={},返回值是:{}", key, JsonUtils.encodeToString(result))
 
             if (result != null) {
-                return fromStoreValue(result) as T
+                return result.fromStoredValue(enableNull) as T
             }
         }
         val result = remoteCache.get(key, resultType, valueLoader)
@@ -134,7 +137,4 @@ class MultiLevelCache(
         }
     }
 
-    companion object {
-        private val logger = LoggerFactory.getLogger(MultiLevelCache::class.java)
-    }
 }

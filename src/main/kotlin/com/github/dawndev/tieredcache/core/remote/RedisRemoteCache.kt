@@ -78,7 +78,6 @@ open class RedisRemoteCache(
 
     override fun <T> get(key: String, resultType: Class<T>, valueLoader: Callable<T>): T? {
 
-
         val redisCacheKey = this.getRedisCacheKey(key)
         logger.taskIfDebug("redis缓存 key= {} 查询redis缓存如果没有命中，从数据库获取数据", redisCacheKey.getKey())
 
@@ -88,7 +87,7 @@ open class RedisRemoteCache(
         if (result != null || redisClient.hasKey(redisCacheKey.getKey())) {
             // 刷新缓存
             super.refreshCache(redisCacheKey, resultType, valueLoader, result)
-            return super.fromStoreValue(result as Any) as T
+            return result.fromStoredValue(enableNull) as T
         }
 
         // 执行缓存方法
@@ -162,12 +161,12 @@ open class RedisRemoteCache(
                 if (result != null) {
                     logger.taskIfDebug("redis缓存 key= {} 获取到锁后查询查询缓存命中，不需要执行被缓存的方法", redisCacheKey.getKey())
 
-                    return fromStoreValue(result) as T?
+                    return result.fromStoredValue(enableNull) as T?
                 }
 
                 // 获取分布式锁去后台查询数据
                 if (redisLock.lock()) {
-                    val t = loaderAndPutValue(redisCacheKey, valueLoader)
+                    val t = this.loaderAndPutValue(redisCacheKey, valueLoader)
                     logger.taskIfDebug("redis缓存 key= {} 从数据库获取数据完毕，唤醒所有等待线程", redisCacheKey.getKey())
 
                     // 唤醒线程
@@ -196,14 +195,14 @@ open class RedisRemoteCache(
             // 加载数据
             val result = this.putValue(key, valueLoader.call() as Any)
             logger.taskIfDebug("redis缓存 key={} 执行被缓存的方法，并将其放入缓存, 耗时：{}。数据:{}", key.getKey(), System.currentTimeMillis() - start, JsonUtils.toJSONString(result))
-            super.fromStoreValue(result) as T
+            result.fromStoredValue(enableNull) as T
         } catch (e: java.lang.Exception) {
             throw CacheLoadException(key.getKey(), e)
         }
     }
 
     private fun putValue(key: RedisCacheKey, value: Any?): Any? {
-        val result = super.toStoreValue(value)
+        val result = value.toStoredValue(enableNull)
         // redis 缓存不允许直接存NULL，如果结果返回NULL需要删除缓存
         if (result == null) {
             redisClient.delete(key.getKey())

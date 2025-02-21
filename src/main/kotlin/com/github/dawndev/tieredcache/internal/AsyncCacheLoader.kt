@@ -1,8 +1,7 @@
 package com.github.dawndev.tieredcache.internal
 
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
+import java.util.concurrent.Executor
 import java.util.function.Supplier
 import java.util.function.Function
 
@@ -14,10 +13,10 @@ import java.util.function.Function
  *  批量加载缓存时使用
  *  需要异步更新缓存时使用
  */
-object AsyncCacheLoader {
+internal object AsyncCacheLoader {
 
-    private val EXECUTOR_SERVICE: ExecutorService =
-        Executors.newFixedThreadPool(10, NamedThreadFactory("AsyncCacheLoader", true))
+//    private val EXECUTOR_SERVICE: ExecutorService =
+//        Executors.newFixedThreadPool(10, NamedThreadFactory("AsyncCacheLoader", true))
 
     /**
      * 异步加载缓存
@@ -29,8 +28,8 @@ object AsyncCacheLoader {
      * @param loader 缓存加载器函数,用于实际加载缓存数据
      * @return CompletableFuture对象, 包含异步加载的缓存值
      */
-    fun <V> asyncLoad(key: String, loader: Function<String, V>): CompletableFuture<V> {
-        return CompletableFuture.supplyAsync({ loader.apply(key) }, EXECUTOR_SERVICE)
+    fun <V> asyncLoad(executor: Executor, key: String, loader: Function<String, V>): CompletableFuture<V> {
+        return CompletableFuture.supplyAsync({ loader.apply(key) }, executor)
     }
 
     /**
@@ -42,7 +41,7 @@ object AsyncCacheLoader {
      * @param loader 缓存加载器函数,用于实际加载缓存数据
      * @return CompletableFuture对象, 包含异步加载的缓存值
      */
-    fun <V> asyncLoad(loader: Supplier<V>): CompletableFuture<V> {
-        return CompletableFuture.supplyAsync(loader, EXECUTOR_SERVICE)
+    fun <V> asyncLoad(executor: Executor, loader: Supplier<V>): CompletableFuture<V> {
+        return CompletableFuture.supplyAsync(loader, executor)
     }
 }
