@@ -17,4 +17,5 @@ object Versions {
     const val Redisson = "3.44.0"
     const val Gson = "2.12.1"
     const val Lettuce = "6.5.3.RELEASE"
+    const val Jackson = "2.13.1"
 }

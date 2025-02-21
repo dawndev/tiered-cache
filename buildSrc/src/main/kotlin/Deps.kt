@@ -23,6 +23,11 @@ object Deps {
         const val Jupiter = "org.junit.jupiter:junit-jupiter:$Version"
     }
 
+    object Jackson {
+        private const val Version = Versions.Jackson
+        const val Kotlin = "com.fasterxml.jackson.module:jackson-module-kotlin:$Version"
+        const val Databind = "com.fasterxml.jackson.core:jackson-databind:$Version"
+    }
 
     const val Kotlinx = "org.jetbrains.kotlinx:kotlinx-cli:${Versions.Kotlinx}"
     const val KotlinxJson = "org.jetbrains.kotlinx:kotlinx-serialization-json:${Versions.KotlinxJson}"

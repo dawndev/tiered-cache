@@ -31,7 +31,7 @@ class CacheMetrics(
             .builder<CacheMetrics>(
                 CACHE_SIZE, this
             ) { obj: CacheMetrics -> obj.getCurrentSize().toDouble().toDouble() }
-            .tag(CACHE_NAME_TAG, cacheName!!)
+            .tag(CACHE_NAME_TAG, cacheName)
             .register(registry)
         Gauge
             .builder<CacheMetrics>(

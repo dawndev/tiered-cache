@@ -28,7 +28,7 @@ class TestCache {
             remoteCacheOption,
             true
         )
-        val cacheName = "cache:name"
+//        val cacheName = "cache:name"
 //        val redisClient = RedisClientFactory.createRedis(
 //            RedisConfigure(
 //                0,
@@ -38,5 +38,9 @@ class TestCache {
 //            )
 //        )
 //        val cacheManager = TieredCacheManager(redisClient)
+//        cacheManager.getCache(cacheName, multiCacheOptions)?.let {
+//            it.put("test", 1)
+//            it.get("test", Int::class.java)
+//        }
     }
 }

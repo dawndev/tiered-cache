@@ -2,7 +2,6 @@ package com.github.dawndev.tieredcache.config
 
 import com.github.dawndev.tieredcache.constg.RedisMessageEnum
 import com.github.dawndev.tieredcache.internal.Parameter
-import kotlinx.serialization.Serializable
 
 /**
  * Redis data source
@@ -31,7 +30,6 @@ data class RedisConfigure(
  * @param messageType       消息类型
  * @param source            消息来源
  */
-@Serializable
 data class RedisPubSubMessage(
     val cacheName: String,
     val key: String,
