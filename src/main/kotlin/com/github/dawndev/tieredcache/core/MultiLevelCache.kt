@@ -9,6 +9,7 @@ import com.github.dawndev.tieredcache.internal.taskIfDebug
 import com.github.dawndev.tieredcache.listener.RedisPublisher
 import com.github.dawndev.tieredcache.redis.client.RedisTemplate
 import org.slf4j.LoggerFactory
+import java.util.*
 import java.util.concurrent.Callable
 
 
@@ -30,7 +31,7 @@ open class MultiLevelCache(
     override val name: String,
     private val multiCacheSetting: MultiCacheOptions,
     override val enableNull: Boolean
-) : AbstractCache(name, enableNull), ICache {
+) : AbstractCache(name), ICache {
 
     constructor(
         client: RedisTemplate,
@@ -65,7 +66,7 @@ open class MultiLevelCache(
 
         val result = remoteCache.get(key, resultType)
         if (enableLocalCache) {
-            localCache.putIfAbsent(key, result as Any, resultType);
+            localCache.putIfAbsent(key, result as Any, resultType)
         }
         logger.taskIfDebug("查询二级缓存,并将数据放到一级缓存。 key={},返回值是:{}", key, JsonUtils.encodeToString(result))
 
@@ -86,6 +87,11 @@ open class MultiLevelCache(
 
         if (enableLocalCache) {
             localCache.putIfAbsent(key, result as Any, resultType)
+        }
+        val list = LinkedList<Int>()
+        // { 1, 3, 4, 5}
+        list.last {
+            it > 4
         }
         logger.taskIfDebug("查询二级缓存,并将数据放到一级缓存。 key={},返回值是:{}", key, JsonUtils.encodeToString(result))
         return result

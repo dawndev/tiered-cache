@@ -13,14 +13,15 @@ import com.github.dawndev.tieredcache.redis.client.RedisTemplate
  *  如果允许为NULL值，则需要在内部将NULL替换成{@link NullValue#INSTANCE} 对象
  *
  * @param name              缓存名称
- * @param enableNull        获取是否允许存在NULL值
  *
  * @author Espresso
  */
 abstract class AbstractCache(
     override val name: String,
-    open val enableNull: Boolean
 ): ICache {
+
+    // 获取是否允许存在NULL值
+    abstract val enableNull: Boolean
 
     protected fun deleteLocalCache(key: String, redisClient: RedisTemplate) {
         // 删除一级缓存需要用到redis的Pub/Sub（订阅/发布）模式，否则集群中其他服服务器节点的一级缓存数据无法删除

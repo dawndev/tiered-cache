@@ -12,7 +12,7 @@ abstract class AbstractRemoteCache<REMOTE_KEY: RemoteKey>(
     private val preloadTime: Long,
     private val enableForceRefresh: Boolean,
     private val magnification: Int
-) : AbstractCache(name, enableNull) {
+) : AbstractCache(name) {
 
     private val logger = LoggerFactory.getLogger(AbstractRemoteCache::class.java)
 

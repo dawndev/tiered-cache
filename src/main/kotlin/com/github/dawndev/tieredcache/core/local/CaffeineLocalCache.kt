@@ -34,7 +34,7 @@ class CaffeineLocalCache(
     private val expireMode: ExpireModeEnum,
     private val expireTime: Long,
     private val enableStats: Boolean
-) : AbstractCache(name, enableNull), LocalCache {
+) : AbstractCache(name), LocalCache {
 
     // 缓存指标
     val metrics: CacheMetrics by lazy {
