@@ -8,21 +8,24 @@ import org.slf4j.LoggerFactory
 /**
  * redis消息的订阅者
  *
- * @author jdg
+ * @author Espresso
  */
 class RedisMessageListener(
     cacheManager: AbstractCacheManager
 ) : RedisPubSubListener<String, String> {
 
-    private var redisMessageService: IMessageService
+    private var redisMessageService: IMessageService = RedisMessageService(cacheManager)
 
     init {
         // 创建监听
         cacheManager.client.subscribe(this, Parameter.REDIS_CHANNEL)
-        redisMessageService = RedisMessageService(cacheManager)
     }
 
-
+    /**
+     *  处理模式匹配的消息
+     * @param channel String
+     * @param message String
+     */
     override fun message(channel: String, message: String) {
         try {
 
@@ -45,7 +48,7 @@ class RedisMessageListener(
     }
 
     override fun psubscribed(pattern: String?, count: Long) {
-        //pass
+        // 处理模式匹配的订阅
     }
 
     override fun unsubscribed(channel: String?, count: Long) {
@@ -53,7 +56,7 @@ class RedisMessageListener(
     }
 
     override fun punsubscribed(pattern: String?, count: Long) {
-        //pass
+        // 处理模式匹配的取消订阅
     }
 
     companion object {

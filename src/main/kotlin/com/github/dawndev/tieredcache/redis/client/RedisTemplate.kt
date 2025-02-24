@@ -8,19 +8,14 @@ import java.util.concurrent.TimeUnit
 /**
  * Redis client
  *
- * @author jdg
+ * @author Espresso
  */
 interface RedisTemplate {
 
-    /**
-     * key序列化方式
-     *
-     */
+    // key序列化方式
     var keySerializer: RedisSerializer
 
-    /**
-     * value序列化方式
-     */
+    // value序列化方式
     var valueSerializer: RedisSerializer
 
     /**

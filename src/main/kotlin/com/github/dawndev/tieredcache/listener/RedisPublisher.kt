@@ -5,12 +5,15 @@ import com.github.dawndev.tieredcache.internal.Parameter
 import com.github.dawndev.tieredcache.internal.JsonUtils
 import com.github.dawndev.tieredcache.internal.taskIfDebug
 import com.github.dawndev.tieredcache.redis.client.RedisTemplate
+import com.github.dawndev.tieredcache.redis.serializer.RedisSerializer
+import com.github.dawndev.tieredcache.redis.serializer.impl.JdkRedisSerializer
 import org.slf4j.LoggerFactory
 import java.util.concurrent.TimeUnit
 
 object RedisPublisher {
 
     private val logger = LoggerFactory.getLogger(RedisPublisher::class.java)
+    val GLOBAL_REDIS_SERIALIZER: RedisSerializer = JdkRedisSerializer()
 
     /**
      * 发布消息到频道（Channel）
@@ -19,7 +22,7 @@ object RedisPublisher {
      * @param message     消息内容
      */
     fun publisher(redisClient: RedisTemplate, message: RedisPubSubMessage) {
-        publisher(redisClient, message, Parameter.NAMESPACE)
+        this.publisher(redisClient, message, Parameter.NAMESPACE)
     }
 
     /**
@@ -33,7 +36,7 @@ object RedisPublisher {
         val messageJson = JsonUtils.encodeToString(message)
 
         // pull 拉模式消息
-        redisClient.lpush(Parameter.getMessageRedisKey(nameSpace), Parameter.GLOBAL_REDIS_SERIALIZER, messageJson)
+        redisClient.lpush(Parameter.getMessageRedisKey(nameSpace), GLOBAL_REDIS_SERIALIZER, messageJson)
         redisClient.expire(Parameter.getMessageRedisKey(nameSpace), 25, TimeUnit.HOURS)
 
         // pub/sub 推模式消息

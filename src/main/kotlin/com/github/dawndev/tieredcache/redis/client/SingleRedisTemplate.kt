@@ -282,7 +282,7 @@ class SingleRedisTemplate(
             pubSubConnection.sync().publish(channel, message)
         } catch (e: SerializationException) {
             throw e
-        } catch (e: java.lang.Exception) {
+        } catch (e: Exception) {
             throw RedisClientException(e.message, e)
         }
     }

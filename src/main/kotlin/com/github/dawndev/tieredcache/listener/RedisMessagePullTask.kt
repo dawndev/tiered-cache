@@ -10,7 +10,7 @@ import java.util.concurrent.TimeUnit
 /**
  * redis消息拉模式
  *
- * @author jdg
+ * @author Espresso
  */
 class RedisMessagePullTask(
     cacheManager: AbstractCacheManager
@@ -19,6 +19,8 @@ class RedisMessagePullTask(
      * redis消息处理器
      */
     private val redisMessageService: IMessageService = RedisMessageService(cacheManager)
+
+    private val logger = LoggerFactory.getLogger(RedisMessagePullTask::class.java)
 
     init {
 
@@ -80,7 +82,6 @@ class RedisMessagePullTask(
     }
 
     companion object {
-        private val logger = LoggerFactory.getLogger(RedisMessagePullTask::class.java)
 
         val executor: ScheduledThreadPoolExecutor =
             ScheduledThreadPoolExecutor(3, NamedThreadFactory("tiered-cache-pull-message"))
